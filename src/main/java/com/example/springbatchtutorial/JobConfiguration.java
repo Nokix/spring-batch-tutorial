@@ -105,7 +105,7 @@ public class JobConfiguration {
     }
 
     @Bean
-    @Primary
+//    @Primary
     Job parallelFlows() {
         TaskletStep stepA1 = soutBuilder.setMessage("Message A1").setStepName("Step A1").setShowThread(true).getTaskletStep();
         TaskletStep stepA2 = soutBuilder.setMessage("Message A2").setStepName("Step A2").setShowThread(true).getTaskletStep();
@@ -120,6 +120,23 @@ public class JobConfiguration {
 
         return new JobBuilder("paralellFlows", jobRepository)
                 .start(flowA).split(new SimpleAsyncTaskExecutor()).add(flowB).end().build();
+    }
+
+    @Bean
+    @Primary
+    Job deciderJob() {
+        TaskletStep step1 = soutBuilder.setMessage("Initial Step").setStepName("Step I").getTaskletStep();
+        TaskletStep step2 = soutBuilder.setMessage("Repeating Step").setStepName("Step R").getTaskletStep();
+
+        RepeatDecider repeatDecider = new RepeatDecider(3);
+
+        return new JobBuilder("deciderJob", jobRepository)
+                .start(step1)
+                .next(repeatDecider)
+                .from(repeatDecider).on(RepeatDecider.REPEAT).to(step2)
+                .from(repeatDecider).on(RepeatDecider.STOP).end()
+                .from(step2).on("*").to(repeatDecider).end()
+                .build();
     }
 
 
