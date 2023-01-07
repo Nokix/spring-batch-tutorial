@@ -1,4 +1,4 @@
-package com.example.springbatchtutorial;
+package com.example.springbatchtutorial.batch;
 
 import lombok.Setter;
 import lombok.experimental.Accessors;
@@ -33,7 +33,6 @@ public class SoutBuilder {
     private String jobName;
     private Boolean showThread = false;
 
-    @StepScope
     public Tasklet getTasklet() {
         String message = this.message;
         return (contribution, chunkContext) -> {

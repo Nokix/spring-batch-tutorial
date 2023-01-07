@@ -1,12 +1,12 @@
-package com.example.springbatchtutorial;
+package com.example.springbatchtutorial.batch;
 
 import org.springframework.batch.core.*;
-import org.springframework.batch.core.annotation.BeforeJob;
 import org.springframework.batch.core.job.builder.FlowBuilder;
 import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.job.flow.Flow;
 import org.springframework.batch.core.launch.JobLauncher;
 import org.springframework.batch.core.repository.JobRepository;
+import org.springframework.batch.core.scope.context.ChunkContext;
 import org.springframework.batch.core.step.builder.JobStepBuilder;
 import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.core.step.tasklet.TaskletStep;
@@ -16,6 +16,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.core.task.SimpleAsyncTaskExecutor;
 import org.springframework.transaction.PlatformTransactionManager;
+
+import java.util.List;
 
 @Configuration
 public class JobConfiguration {
@@ -190,11 +192,41 @@ public class JobConfiguration {
 
 
     @Bean
-    @Primary
+//    @Primary
     Job jobWithListener2() {
         return new JobBuilder("very verbose Job", jobRepository)
                 .listener(new VerboseJobListener())
                 .start(createSmallFlow())
                 .end().build();
+    }
+
+    @Bean
+    @Primary
+    Job iterableReaderJob() {
+        ChunkListener chunkListener = new ChunkListener() {
+            @Override
+            public void beforeChunk(ChunkContext context) {
+                System.out.println("Chunk is complete: " + context.isComplete());
+            }
+
+            @Override
+            public void afterChunk(ChunkContext context) {
+                System.out.println("Chunk is complete: " + context.isComplete());
+            }
+        };
+
+        List<String> list = List.of("a", "b", "c", "d", "e", "f", "g");
+
+        TaskletStep listReadAndSoutStep = new StepBuilder("ListReadAndSoutStep", jobRepository)
+                .<String, String>chunk(3, transactionManager)
+                .listener(chunkListener)
+                .reader(new IterableReader<>(list))
+                .processor(String::toUpperCase)
+                .writer(chunk -> chunk.forEach(System.out::println))
+                .build();
+
+        return new JobBuilder("ListReadAndSoutJob", jobRepository)
+                .start(listReadAndSoutStep)
+                .build();
     }
 }

@@ -1,4 +1,4 @@
-package com.example.springbatchtutorial;
+package com.example.springbatchtutorial.batch;
 
 import org.springframework.batch.core.JobExecution;
 import org.springframework.batch.core.StepExecution;
