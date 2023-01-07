@@ -18,6 +18,9 @@ import org.springframework.batch.core.step.tasklet.TaskletStep;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.batch.item.data.RepositoryItemReader;
 import org.springframework.batch.item.data.RepositoryItemWriter;
+import org.springframework.batch.item.validator.ValidatingItemProcessor;
+import org.springframework.batch.item.validator.ValidationException;
+import org.springframework.batch.item.validator.Validator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -285,12 +288,16 @@ public class JobConfiguration {
         reader.setSort(Map.of("id", Sort.Direction.ASC));
         reader.setPageSize(10);
 
-        ItemProcessor<Student, Student> processor = new ItemProcessor<>() {
+        Validator<Student> validator = new Validator<>() {
             @Override
-            public Student process(Student item) throws Exception {
-                return item.getFirstName().length() % 2 == 0 ? item : null;
+            public void validate(Student value) throws ValidationException {
+                if (value.getFirstName().length() > 4) throw new ValidationException("Name Too Long");
             }
         };
+
+        ValidatingItemProcessor<Student> processor = new ValidatingItemProcessor<>(validator);
+
+        processor.setFilter(true);
 
         TaskletStep step = new StepBuilder("printStudentsStep", jobRepository)
                 .<Student, Student>chunk(10, transactionManager)
