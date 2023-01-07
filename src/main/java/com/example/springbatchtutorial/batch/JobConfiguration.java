@@ -15,6 +15,7 @@ import org.springframework.batch.core.step.builder.JobStepBuilder;
 import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.core.step.tasklet.TaskletStep;
 import org.springframework.batch.item.ItemProcessor;
+import org.springframework.batch.item.ItemWriter;
 import org.springframework.batch.item.data.RepositoryItemReader;
 import org.springframework.batch.item.data.RepositoryItemWriter;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -286,22 +287,46 @@ public class JobConfiguration {
 
         ItemProcessor<Student, Student> processor = item -> {
             String firstName = item.getFirstName();
-            if (firstName.length() < 6) {
-                System.out.println("Name Too Short, let's make it longer.");
-                item.setFirstName(firstName + "eth");
+            if (firstName.length() < 4) {
+                System.out.println("Name " + firstName + " too Short, SKIP!");
                 throw new CustomException();
             }
             return item;
+        };
+
+        ItemWriter<Student> writer = chunk -> {
+            System.out.println(chunk.getItems().size());
+            for (Student student : chunk) {
+                String firstName = student.getFirstName();
+                if (firstName.length() > 9) {
+                    System.out.println("Name " + firstName + " too long. SKIP!");
+                    throw new CustomException();
+                }
+                System.out.println("Name " + firstName + " is ok");
+            }
+        };
+
+        SkipListener<Student, Student> skipListener = new SkipListener<>() {
+            @Override
+            public void onSkipInWrite(Student item, Throwable t) {
+                System.out.println("FirstName was too long. Item: " + item);
+            }
+
+            @Override
+            public void onSkipInProcess(Student item, Throwable t) {
+                System.out.println("FirstName was too short. Item: " + item);
+            }
         };
 
         TaskletStep step = new StepBuilder("printStudentsStep", jobRepository)
                 .<Student, Student>chunk(10, transactionManager)
                 .reader(reader)
                 .processor(processor)
-                .writer(chunk -> chunk.forEach(System.out::println))
+                .writer(writer)
                 .faultTolerant()
-                .retry(CustomException.class)
-                .retryLimit(2)
+                .skip(CustomException.class)
+                .skipLimit(10)
+                .listener(skipListener)
                 .build();
 
         return new JobBuilder("printStudentsJob", jobRepository)
