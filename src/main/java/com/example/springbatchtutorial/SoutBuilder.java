@@ -3,6 +3,7 @@ package com.example.springbatchtutorial;
 import lombok.Setter;
 import lombok.experimental.Accessors;
 import org.springframework.batch.core.Job;
+import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
@@ -32,6 +33,7 @@ public class SoutBuilder {
     private String jobName;
     private Boolean showThread = false;
 
+    @StepScope
     public Tasklet getTasklet() {
         String message = this.message;
         return (contribution, chunkContext) -> {

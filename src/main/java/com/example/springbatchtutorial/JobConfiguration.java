@@ -1,7 +1,7 @@
 package com.example.springbatchtutorial;
 
-import org.springframework.batch.core.Job;
-import org.springframework.batch.core.Step;
+import org.springframework.batch.core.*;
+import org.springframework.batch.core.annotation.BeforeJob;
 import org.springframework.batch.core.job.builder.FlowBuilder;
 import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.job.flow.Flow;
@@ -89,7 +89,7 @@ public class JobConfiguration {
     }
 
     @Bean
-    //@Primary
+        //@Primary
     Job flowFirstJob() {
         TaskletStep step0 = soutBuilder.setMessage("Message 0").setStepName("Step 0").getTaskletStep();
         Flow flow = createSmallFlow();
@@ -144,7 +144,7 @@ public class JobConfiguration {
     }
 
     @Bean
-    @Primary
+//    @Primary
     Job nestedJob(JobLauncher jobLauncher) {
         TaskletStep step0 = soutBuilder.setMessage("First Step").setStepName("Step F").getTaskletStep();
         TaskletStep step1 = soutBuilder.setMessage("Nested Step").setStepName("Step N").getTaskletStep();
@@ -160,5 +160,41 @@ public class JobConfiguration {
 
         return new JobBuilder("outer Job", jobRepository)
                 .start(step0).next(nestedJobStep).next(step2).build();
+    }
+
+    @Bean
+//    @Primary
+    Job jobWithListener() {
+
+        JobExecutionListener listener = new JobExecutionListener() {
+            @Override
+            public void beforeJob(JobExecution jobExecution) {
+                System.out.println("LET'S DO IT, "
+                        + jobExecution.getJobInstance().getJobName());
+            }
+
+            @Override
+            public void afterJob(JobExecution jobExecution) {
+                System.out.println("YOU'VE DONE IT, "
+                        + jobExecution.getJobInstance().getJobName());
+            }
+        };
+
+        Flow flow = createSmallFlow();
+
+        return new JobBuilder("very verbose Job", jobRepository)
+                .listener(listener)
+                .start(flow)
+                .end().build();
+    }
+
+
+    @Bean
+    @Primary
+    Job jobWithListener2() {
+        return new JobBuilder("very verbose Job", jobRepository)
+                .listener(new VerboseJobListener())
+                .start(createSmallFlow())
+                .end().build();
     }
 }
