@@ -1,6 +1,7 @@
 package com.example.springbatchtutorial.batch;
 
 import com.example.springbatchtutorial.entity.Student;
+import com.example.springbatchtutorial.faker.FakeMachine;
 import com.example.springbatchtutorial.repository.StudentRepository;
 import org.springframework.batch.core.*;
 import org.springframework.batch.core.configuration.annotation.StepScope;
@@ -15,6 +16,7 @@ import org.springframework.batch.core.step.builder.SimpleStepBuilder;
 import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.core.step.tasklet.TaskletStep;
 import org.springframework.batch.item.data.RepositoryItemReader;
+import org.springframework.batch.item.data.RepositoryItemWriter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -275,7 +277,7 @@ public class JobConfiguration {
 
     @Bean
     @Primary
-    Job databaseJob(StudentRepository studentRepository) {
+    Job databaseReadJob(StudentRepository studentRepository) {
         RepositoryItemReader<Student> reader = new RepositoryItemReader<>();
         reader.setRepository(studentRepository);
         reader.setMethodName("findAll");
@@ -289,6 +291,27 @@ public class JobConfiguration {
 
         return new JobBuilder("printStudentsJob", jobRepository)
                 .start(step).build();
+    }
+
+    @Bean
+//    @Primary
+    Job dataBaseWriteJob(StudentRepository studentRepository,
+                         FakeMachine fakeMachine) {
+        Iterable<Student> students = fakeMachine.fakeStudents(100);
+
+        IterableReader<Student> reader = new IterableReader<>(students);
+
+        RepositoryItemWriter<Student> writer = new RepositoryItemWriter<>();
+        writer.setRepository(studentRepository);
+
+        TaskletStep writeStep = new StepBuilder("WriteStep", jobRepository)
+                .<Student, Student>chunk(15, transactionManager)
+                .reader(reader)
+                .writer(writer)
+                .build();
+
+        return new JobBuilder("WriteRepoJob", jobRepository)
+                .start(writeStep).build();
     }
 
 }

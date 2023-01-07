@@ -26,7 +26,7 @@ public class SpringBatchTutorialApplication {
 
 		FakeMachine fakeMachine = context.getBean(FakeMachine.class);
 		StudentRepository studentRepository = context.getBean(StudentRepository.class);
-		studentRepository.saveAll(fakeMachine.fakeStudents(100));
+		//studentRepository.saveAll(fakeMachine.fakeStudents(100));
 
 		JobParameters jobParameters
 				= new JobParametersBuilder()
