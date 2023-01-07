@@ -32,6 +32,7 @@ public class SoutBuilder {
     private String jobName;
 
     public Tasklet getTasklet() {
+        String message = this.message;
         return (contribution, chunkContext) -> {
             System.out.println(message);
             return RepeatStatus.FINISHED;
@@ -39,11 +40,13 @@ public class SoutBuilder {
     }
 
     public TaskletStep getTaskletStep() {
+        String stepName = this.stepName;
         return new StepBuilder(stepName, jobRepository)
                 .tasklet(getTasklet(), transactionManager).build();
     }
 
     public Job getJob() {
+        String jobName = this.jobName;
         return new JobBuilder(jobName, jobRepository)
                 .start(getTaskletStep()).build();
     }
