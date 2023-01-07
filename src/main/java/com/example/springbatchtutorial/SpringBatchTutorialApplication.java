@@ -24,6 +24,7 @@ public class SpringBatchTutorialApplication {
 		JobParameters jobParameters
 				= new JobParametersBuilder()
 				.addLong("startAt", System.currentTimeMillis())
+				.addString("message", "aloha")
 				.toJobParameters();
 
 		Job job = context.getBean(Job.class);

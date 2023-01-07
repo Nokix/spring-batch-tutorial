@@ -1,6 +1,7 @@
 package com.example.springbatchtutorial.batch;
 
 import org.springframework.batch.core.*;
+import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.core.job.builder.FlowBuilder;
 import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.job.flow.Flow;
@@ -11,9 +12,9 @@ import org.springframework.batch.core.step.builder.JobStepBuilder;
 import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.core.step.tasklet.TaskletStep;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Primary;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.*;
 import org.springframework.core.task.SimpleAsyncTaskExecutor;
 import org.springframework.transaction.PlatformTransactionManager;
 
@@ -201,7 +202,7 @@ public class JobConfiguration {
     }
 
     @Bean
-    @Primary
+//    @Primary
     Job iterableReaderJob() {
         ChunkListener chunkListener = new ChunkListener() {
             @Override
@@ -229,4 +230,41 @@ public class JobConfiguration {
                 .start(listReadAndSoutStep)
                 .build();
     }
+
+
+    @Bean
+//    @Primary
+    Job stateFullStepJob() {
+
+        List<String> list = List.of("a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k");
+
+        TaskletStep listReadAndSoutStep = new StepBuilder("ListReadAndSoutStep", jobRepository)
+                .<String, String>chunk(3, transactionManager)
+                .reader(new StateFullListReader<>(list, 1500))
+                .processor(String::toUpperCase)
+                .writer(chunk -> chunk.forEach(System.out::println))
+                .build();
+
+        return new JobBuilder("StatefullStepJob", jobRepository)
+                .start(listReadAndSoutStep)
+                .build();
+    }
+
+    @Bean
+    @Qualifier("messageTaskletStep")
+    @StepScope
+    @Scope(proxyMode = ScopedProxyMode.DEFAULT)
+    TaskletStep getStepWithMessageValue(@Value("${jobParameters['message']:arr}") String message) {
+        return soutBuilder.setMessage(message).setStepName("Step 1").getTaskletStep();
+    }
+
+    @Bean
+    @Primary
+    Job paremterJob(@Qualifier("messageTaskletStep") TaskletStep taskletStep) {
+
+        return new JobBuilder("chainedJob", jobRepository)
+                .start(taskletStep)
+                .build();
+    }
+
 }
