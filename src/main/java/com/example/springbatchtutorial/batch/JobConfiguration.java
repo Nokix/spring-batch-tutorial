@@ -12,16 +12,11 @@ import org.springframework.batch.core.launch.JobLauncher;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.scope.context.ChunkContext;
 import org.springframework.batch.core.step.builder.JobStepBuilder;
-import org.springframework.batch.core.step.builder.SimpleStepBuilder;
 import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.core.step.tasklet.TaskletStep;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.batch.item.data.RepositoryItemReader;
 import org.springframework.batch.item.data.RepositoryItemWriter;
-import org.springframework.batch.item.support.CompositeItemProcessor;
-import org.springframework.batch.item.validator.ValidatingItemProcessor;
-import org.springframework.batch.item.validator.ValidationException;
-import org.springframework.batch.item.validator.Validator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -289,26 +284,25 @@ public class JobConfiguration {
         reader.setSort(Map.of("id", Sort.Direction.ASC));
         reader.setPageSize(10);
 
-        Validator<Student> validator = new Validator<>() {
-            @Override
-            public void validate(Student value) throws ValidationException {
-                if (value.getFirstName().length() > 4) throw new ValidationException("Name Too Long");
+        ItemProcessor<Student, Student> processor = item -> {
+            String firstName = item.getFirstName();
+            if (firstName.length() < 6) {
+                System.out.println("Name Too Short, let's make it longer.");
+                item.setFirstName(firstName + "eth");
+                throw new CustomException();
             }
+            return item;
         };
-
-        ValidatingItemProcessor<Student> validatingItemProcessor = new ValidatingItemProcessor<>(validator);
-        validatingItemProcessor.setFilter(true);
-
-        ItemProcessor<Student, Student> nameOptimizer = item -> item.setFirstName(item.getFirstName() + "eth");
-
-        CompositeItemProcessor<Student, Student> compositeItemProcessor = new CompositeItemProcessor<>(
-                List.of(validatingItemProcessor, nameOptimizer));
 
         TaskletStep step = new StepBuilder("printStudentsStep", jobRepository)
                 .<Student, Student>chunk(10, transactionManager)
                 .reader(reader)
-                .processor(compositeItemProcessor)
-                .writer(chunk -> chunk.forEach(System.out::println)).build();
+                .processor(processor)
+                .writer(chunk -> chunk.forEach(System.out::println))
+                .faultTolerant()
+                .retry(CustomException.class)
+                .retryLimit(2)
+                .build();
 
         return new JobBuilder("printStudentsJob", jobRepository)
                 .start(step).build();
