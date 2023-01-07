@@ -1,5 +1,7 @@
 package com.example.springbatchtutorial.batch;
 
+import com.example.springbatchtutorial.entity.Student;
+import com.example.springbatchtutorial.repository.StudentRepository;
 import org.springframework.batch.core.*;
 import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.core.job.builder.FlowBuilder;
@@ -9,16 +11,20 @@ import org.springframework.batch.core.launch.JobLauncher;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.scope.context.ChunkContext;
 import org.springframework.batch.core.step.builder.JobStepBuilder;
+import org.springframework.batch.core.step.builder.SimpleStepBuilder;
 import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.core.step.tasklet.TaskletStep;
+import org.springframework.batch.item.data.RepositoryItemReader;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.*;
 import org.springframework.core.task.SimpleAsyncTaskExecutor;
+import org.springframework.data.domain.Sort;
 import org.springframework.transaction.PlatformTransactionManager;
 
 import java.util.List;
+import java.util.Map;
 
 @Configuration
 public class JobConfiguration {
@@ -259,12 +265,30 @@ public class JobConfiguration {
     }
 
     @Bean
-    @Primary
+//    @Primary
     Job paremterJob(@Qualifier("messageTaskletStep") TaskletStep taskletStep) {
 
         return new JobBuilder("chainedJob", jobRepository)
                 .start(taskletStep)
                 .build();
+    }
+
+    @Bean
+    @Primary
+    Job databaseJob(StudentRepository studentRepository) {
+        RepositoryItemReader<Student> reader = new RepositoryItemReader<>();
+        reader.setRepository(studentRepository);
+        reader.setMethodName("findAll");
+        reader.setSort(Map.of("id", Sort.Direction.ASC));
+        reader.setPageSize(10);
+
+        TaskletStep step = new StepBuilder("printStudentsStep", jobRepository)
+                .<Student, Student>chunk(10, transactionManager)
+                .reader(reader)
+                .writer(chunk -> chunk.forEach(System.out::println)).build();
+
+        return new JobBuilder("printStudentsJob", jobRepository)
+                .start(step).build();
     }
 
 }

@@ -1,5 +1,8 @@
 package com.example.springbatchtutorial;
 
+import com.example.springbatchtutorial.entity.Student;
+import com.example.springbatchtutorial.faker.FakeMachine;
+import com.example.springbatchtutorial.repository.StudentRepository;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.JobParameters;
 import org.springframework.batch.core.JobParametersBuilder;
@@ -21,10 +24,13 @@ public class SpringBatchTutorialApplication {
 		ConfigurableApplicationContext context
 				= SpringApplication.run(SpringBatchTutorialApplication.class, args);
 
+		FakeMachine fakeMachine = context.getBean(FakeMachine.class);
+		StudentRepository studentRepository = context.getBean(StudentRepository.class);
+		studentRepository.saveAll(fakeMachine.fakeStudents(100));
+
 		JobParameters jobParameters
 				= new JobParametersBuilder()
 				.addLong("startAt", System.currentTimeMillis())
-				.addString("message", "aloha")
 				.toJobParameters();
 
 		Job job = context.getBean(Job.class);
