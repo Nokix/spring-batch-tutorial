@@ -15,6 +15,7 @@ import org.springframework.batch.core.step.builder.JobStepBuilder;
 import org.springframework.batch.core.step.builder.SimpleStepBuilder;
 import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.core.step.tasklet.TaskletStep;
+import org.springframework.batch.item.ItemProcessor;
 import org.springframework.batch.item.data.RepositoryItemReader;
 import org.springframework.batch.item.data.RepositoryItemWriter;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -284,9 +285,17 @@ public class JobConfiguration {
         reader.setSort(Map.of("id", Sort.Direction.ASC));
         reader.setPageSize(10);
 
+        ItemProcessor<Student, Student> processor = new ItemProcessor<>() {
+            @Override
+            public Student process(Student item) throws Exception {
+                return item.getFirstName().length() % 2 == 0 ? item : null;
+            }
+        };
+
         TaskletStep step = new StepBuilder("printStudentsStep", jobRepository)
                 .<Student, Student>chunk(10, transactionManager)
                 .reader(reader)
+                .processor(processor)
                 .writer(chunk -> chunk.forEach(System.out::println)).build();
 
         return new JobBuilder("printStudentsJob", jobRepository)
@@ -294,7 +303,7 @@ public class JobConfiguration {
     }
 
     @Bean
-//    @Primary
+//  @Primary
     Job dataBaseWriteJob(StudentRepository studentRepository,
                          FakeMachine fakeMachine) {
         Iterable<Student> students = fakeMachine.fakeStudents(100);
@@ -303,6 +312,7 @@ public class JobConfiguration {
 
         RepositoryItemWriter<Student> writer = new RepositoryItemWriter<>();
         writer.setRepository(studentRepository);
+
 
         TaskletStep writeStep = new StepBuilder("WriteStep", jobRepository)
                 .<Student, Student>chunk(15, transactionManager)
