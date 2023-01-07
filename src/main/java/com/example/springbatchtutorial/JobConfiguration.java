@@ -107,18 +107,21 @@ public class JobConfiguration {
     @Bean
     @Primary
     Job parallelFlows() {
-        TaskletStep stepA1 = soutBuilder.setMessage("Message A1").setStepName("Step A1").getTaskletStep();
-        TaskletStep stepA2 = soutBuilder.setMessage("Message A2").setStepName("Step A2").getTaskletStep();
-        TaskletStep stepA3 = soutBuilder.setMessage("Message A3").setStepName("Step A3").getTaskletStep();
+        TaskletStep stepA1 = soutBuilder.setMessage("Message A1").setStepName("Step A1").setShowThread(true).getTaskletStep();
+        TaskletStep stepA2 = soutBuilder.setMessage("Message A2").setStepName("Step A2").setShowThread(true).getTaskletStep();
+        TaskletStep stepA3 = soutBuilder.setMessage("Message A3").setStepName("Step A3").setShowThread(true).getTaskletStep();
         Flow flowA = new FlowBuilder<Flow>("3 Part A Flow").start(stepA1).next(stepA2).next(stepA3).end();
 
 
-        TaskletStep stepB1 = soutBuilder.setMessage("Message B1").setStepName("Step B1").getTaskletStep();
-        TaskletStep stepB2 = soutBuilder.setMessage("Message B2").setStepName("Step B2").getTaskletStep();
-        TaskletStep stepB3 = soutBuilder.setMessage("Message B3").setStepName("Step B3").getTaskletStep();
+        TaskletStep stepB1 = soutBuilder.setMessage("Message B1").setStepName("Step B1").setShowThread(true).getTaskletStep();
+        TaskletStep stepB2 = soutBuilder.setMessage("Message B2").setStepName("Step B2").setShowThread(true).getTaskletStep();
+        TaskletStep stepB3 = soutBuilder.setMessage("Message B3").setStepName("Step B3").setShowThread(true).getTaskletStep();
         Flow flowB = new FlowBuilder<Flow>("3 Part B Flow").start(stepB1).next(stepB2).next(stepB3).end();
 
         return new JobBuilder("paralellFlows", jobRepository)
                 .start(flowA).split(new SimpleAsyncTaskExecutor()).add(flowB).end().build();
     }
+
+
+
 }

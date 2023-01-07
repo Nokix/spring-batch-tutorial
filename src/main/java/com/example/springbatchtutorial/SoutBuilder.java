@@ -30,11 +30,13 @@ public class SoutBuilder {
     private String stepName;
     @Value("soutJob")
     private String jobName;
+    private Boolean showThread = false;
 
     public Tasklet getTasklet() {
         String message = this.message;
         return (contribution, chunkContext) -> {
-            System.out.println(message);
+            System.out.println(message +
+                    (showThread ? " "+Thread.currentThread().getName() : ""));
             return RepeatStatus.FINISHED;
         };
     }
