@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
+import org.springframework.core.task.SimpleAsyncTaskExecutor;
 import org.springframework.transaction.PlatformTransactionManager;
 
 @Configuration
@@ -94,12 +95,30 @@ public class JobConfiguration {
     }
 
     @Bean
-    @Primary
+//    @Primary
     Job flowLastJob() {
         TaskletStep step0 = soutBuilder.setMessage("Message 0").setStepName("Step 0").getTaskletStep();
         Flow flow = createSmallFlow();
         return new JobBuilder("flowFirstJob", jobRepository)
                 .start(step0).on("COMPLETED").to(flow)
                 .end().build();
+    }
+
+    @Bean
+    @Primary
+    Job parallelFlows() {
+        TaskletStep stepA1 = soutBuilder.setMessage("Message A1").setStepName("Step A1").getTaskletStep();
+        TaskletStep stepA2 = soutBuilder.setMessage("Message A2").setStepName("Step A2").getTaskletStep();
+        TaskletStep stepA3 = soutBuilder.setMessage("Message A3").setStepName("Step A3").getTaskletStep();
+        Flow flowA = new FlowBuilder<Flow>("3 Part A Flow").start(stepA1).next(stepA2).next(stepA3).end();
+
+
+        TaskletStep stepB1 = soutBuilder.setMessage("Message B1").setStepName("Step B1").getTaskletStep();
+        TaskletStep stepB2 = soutBuilder.setMessage("Message B2").setStepName("Step B2").getTaskletStep();
+        TaskletStep stepB3 = soutBuilder.setMessage("Message B3").setStepName("Step B3").getTaskletStep();
+        Flow flowB = new FlowBuilder<Flow>("3 Part B Flow").start(stepB1).next(stepB2).next(stepB3).end();
+
+        return new JobBuilder("paralellFlows", jobRepository)
+                .start(flowA).split(new SimpleAsyncTaskExecutor()).add(flowB).end().build();
     }
 }
