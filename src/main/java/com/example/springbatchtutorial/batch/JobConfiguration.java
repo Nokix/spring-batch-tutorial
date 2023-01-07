@@ -18,6 +18,7 @@ import org.springframework.batch.core.step.tasklet.TaskletStep;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.batch.item.data.RepositoryItemReader;
 import org.springframework.batch.item.data.RepositoryItemWriter;
+import org.springframework.batch.item.support.CompositeItemProcessor;
 import org.springframework.batch.item.validator.ValidatingItemProcessor;
 import org.springframework.batch.item.validator.ValidationException;
 import org.springframework.batch.item.validator.Validator;
@@ -295,14 +296,18 @@ public class JobConfiguration {
             }
         };
 
-        ValidatingItemProcessor<Student> processor = new ValidatingItemProcessor<>(validator);
+        ValidatingItemProcessor<Student> validatingItemProcessor = new ValidatingItemProcessor<>(validator);
+        validatingItemProcessor.setFilter(true);
 
-        processor.setFilter(true);
+        ItemProcessor<Student, Student> nameOptimizer = item -> item.setFirstName(item.getFirstName() + "eth");
+
+        CompositeItemProcessor<Student, Student> compositeItemProcessor = new CompositeItemProcessor<>(
+                List.of(validatingItemProcessor, nameOptimizer));
 
         TaskletStep step = new StepBuilder("printStudentsStep", jobRepository)
                 .<Student, Student>chunk(10, transactionManager)
                 .reader(reader)
-                .processor(processor)
+                .processor(compositeItemProcessor)
                 .writer(chunk -> chunk.forEach(System.out::println)).build();
 
         return new JobBuilder("printStudentsJob", jobRepository)
