@@ -1,10 +1,14 @@
 package com.example.springbatchtutorial;
 
 import org.springframework.batch.core.Job;
+import org.springframework.batch.core.Step;
 import org.springframework.batch.core.job.builder.FlowBuilder;
 import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.job.flow.Flow;
+import org.springframework.batch.core.launch.JobLauncher;
 import org.springframework.batch.core.repository.JobRepository;
+import org.springframework.batch.core.step.builder.JobStepBuilder;
+import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.core.step.tasklet.TaskletStep;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -123,7 +127,7 @@ public class JobConfiguration {
     }
 
     @Bean
-    @Primary
+//    @Primary
     Job deciderJob() {
         TaskletStep step1 = soutBuilder.setMessage("Initial Step").setStepName("Step I").getTaskletStep();
         TaskletStep step2 = soutBuilder.setMessage("Repeating Step").setStepName("Step R").getTaskletStep();
@@ -139,6 +143,22 @@ public class JobConfiguration {
                 .build();
     }
 
+    @Bean
+    @Primary
+    Job nestedJob(JobLauncher jobLauncher) {
+        TaskletStep step0 = soutBuilder.setMessage("First Step").setStepName("Step F").getTaskletStep();
+        TaskletStep step1 = soutBuilder.setMessage("Nested Step").setStepName("Step N").getTaskletStep();
+        TaskletStep step2 = soutBuilder.setMessage("Last Step").setStepName("Step L").getTaskletStep();
 
+        Job nestedJob = new JobBuilder("Nested Job", jobRepository).flow(step1).on("*").fail().end().build();
 
+        Step nestedJobStep = new JobStepBuilder(new StepBuilder("nestedJobStep", jobRepository))
+                .job(nestedJob)
+                .launcher(jobLauncher)
+                .repository(jobRepository)
+                .build();
+
+        return new JobBuilder("outer Job", jobRepository)
+                .start(step0).next(nestedJobStep).next(step2).build();
+    }
 }

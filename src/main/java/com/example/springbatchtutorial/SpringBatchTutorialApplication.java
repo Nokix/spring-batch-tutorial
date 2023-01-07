@@ -30,6 +30,8 @@ public class SpringBatchTutorialApplication {
 		JobLauncher jobLauncher = context.getBean(JobLauncher.class);
 
 		jobLauncher.run(job, jobParameters);
+
+		context.close();
 	}
 }
 
