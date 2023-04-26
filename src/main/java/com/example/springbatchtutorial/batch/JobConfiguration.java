@@ -15,13 +15,24 @@ import org.springframework.batch.core.step.builder.JobStepBuilder;
 import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.core.step.tasklet.TaskletStep;
 import org.springframework.batch.item.ItemProcessor;
+import org.springframework.batch.item.ItemReader;
 import org.springframework.batch.item.ItemWriter;
 import org.springframework.batch.item.data.RepositoryItemReader;
 import org.springframework.batch.item.data.RepositoryItemWriter;
+import org.springframework.batch.item.file.FlatFileItemReader;
+import org.springframework.batch.item.file.FlatFileItemWriter;
+import org.springframework.batch.item.file.mapping.BeanWrapperFieldSetMapper;
+import org.springframework.batch.item.file.mapping.DefaultLineMapper;
+import org.springframework.batch.item.file.transform.BeanWrapperFieldExtractor;
+import org.springframework.batch.item.file.transform.DelimitedLineAggregator;
+import org.springframework.batch.item.file.transform.DelimitedLineTokenizer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.*;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.WritableResource;
 import org.springframework.core.task.SimpleAsyncTaskExecutor;
 import org.springframework.data.domain.Sort;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -242,7 +253,7 @@ public class JobConfiguration {
 
 
     @Bean
-//    @Primary
+    @Primary
     Job stateFullStepJob() {
 
         List<String> list = List.of("a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k");
@@ -277,7 +288,7 @@ public class JobConfiguration {
     }
 
     @Bean
-    @Primary
+//    @Primary
     Job databaseReadJob(StudentRepository studentRepository) {
         RepositoryItemReader<Student> reader = new RepositoryItemReader<>();
         reader.setRepository(studentRepository);
@@ -350,6 +361,68 @@ public class JobConfiguration {
                 .reader(reader)
                 .writer(writer)
                 .build();
+
+        return new JobBuilder("WriteRepoJob", jobRepository)
+                .start(writeStep).build();
+    }
+
+    private Resource resource = new FileSystemResource("output/outputData.csv");
+
+    @Bean
+//    @Primary
+    Job csvWriteJob(StudentRepository studentRepository,
+                    FakeMachine fakeMachine) {
+        Iterable<Student> students = fakeMachine.fakeStudents(100);
+
+        IterableReader<Student> reader = new IterableReader<>(students);
+
+        FlatFileItemWriter<Student> writer = new FlatFileItemWriter<>();
+        writer.setAppendAllowed(true);
+        writer.setResource((WritableResource) resource);
+        writer.setLineAggregator(new DelimitedLineAggregator<Student>() {{
+            setDelimiter(",");
+            setFieldExtractor(new BeanWrapperFieldExtractor<>() {{
+                setNames(new String[]{"id", "firstName", "lastName", "email"});
+            }});
+        }});
+
+
+        TaskletStep writeStep = new StepBuilder("WriteStep", jobRepository)
+                .<Student, Student>chunk(15, transactionManager)
+                .reader(reader)
+                .writer(writer)
+                .build();
+
+        return new JobBuilder("WriteRepoJob", jobRepository)
+                .start(writeStep).build();
+    }
+
+    @Bean
+//    @Primary
+    Job csvReadJob() {
+
+        FlatFileItemReader<Student> reader = new FlatFileItemReader<>();
+        reader.setResource(resource);
+        reader.setLinesToSkip(0);
+        reader.setLineMapper(new DefaultLineMapper<>(){{
+            setLineTokenizer(new DelimitedLineTokenizer(){{
+                setNames("id", "firstName", "lastName", "email");
+            }});
+            setFieldSetMapper(new BeanWrapperFieldSetMapper<>(){{
+                setTargetType(Student.class);
+            }});
+        }});
+
+
+
+        ItemWriter<Student> writer = chunk -> chunk.forEach(System.out::println);
+
+        TaskletStep writeStep = new StepBuilder("WriteStep", jobRepository)
+                .<Student, Student>chunk(15, transactionManager)
+                .reader(reader)
+                .writer(writer)
+                .build();
+
 
         return new JobBuilder("WriteRepoJob", jobRepository)
                 .start(writeStep).build();
